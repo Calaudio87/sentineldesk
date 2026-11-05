@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: ./docker/php
+    container_name: sentineldesk_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - APP_ENV=local
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - sentinel_net
+
+  webserver:
+    image: nginx:alpine
+    container_name: sentineldesk_nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - sentinel_net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentineldesk_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sentineldesk
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel_secret_password
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - sentinel_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentineldesk_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - sentinel_net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  sentinel_net:
+    driver: bridge
